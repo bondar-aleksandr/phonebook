@@ -24,27 +24,29 @@ func (pt PhoneType) String() string {
 type Phone struct {
 	Type PhoneType
 	Number string
-	Active bool
 }
 
 func(p *Phone) String() string {
-	return fmt.Sprintf("Phone: %s, Type: %s, Active: %t", p.Number, p.Type, p.Active)
+	return fmt.Sprintf("Phone: [Number:%q, Type: %q]", p.Number, p.Type)
 }
 
-// func(p *Phone) toSlice
-
 type Person struct {
+	ID int32
 	FirstName string
 	LastName string
 	Notes string
 	Phones map[string]*Phone
 }
 
-func NewPhone(t PhoneType, num string, act bool) *Phone {
+func(p *Person) String() string {
+	return fmt.Sprintf("Person: [FirstName: %q, LastName: %q, Notes: %q, Phones: %v]",
+	 p.FirstName, p.LastName, p.Notes, p.Phones)
+}
+
+func NewPhone(t PhoneType, num string) *Phone {
 	return &Phone{
 		Type: t,
 		Number: num,
-		Active: act,
 	}
 }
 

@@ -20,6 +20,6 @@ func (p *PhoneBook) Add(ctx context.Context, person *entities.Person) error {
 	return p.storage.Create(ctx, person)
 }
 
-func (p *PhoneBook) Get(ctx context.Context, s *storage.SearchData) (*entities.Person, error) {
+func (p *PhoneBook) Search(ctx context.Context, s *entities.SearchData) ([]*entities.Person, error) {
 	return p.storage.Read(ctx, s)
 }

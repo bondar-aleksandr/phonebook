@@ -85,7 +85,7 @@ func(s *Storage) Create(ctx context.Context, p *entities.Person) error {
 	return nil
 }
 
-func(s *Storage) Read(ctx context.Context, data *storage.SearchData) (*entities.Person, error) {
+func(s *Storage) Read(ctx context.Context, data *entities.SearchData) (*entities.Person, error) {
 	
 	var (
 		// FirstName string
