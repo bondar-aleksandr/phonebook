@@ -24,3 +24,9 @@ INSERT INTO person (first_name, last_name, notes) VALUES (?, ?, ?);
 
 -- name: AddPhone :exec
 INSERT INTO phone (phone_number, phone_type, person_id) VALUES (?, ?, ?);
+
+-- name: DeletePersonByFname :execrows
+DELETE FROM person WHERE first_name LIKE CONCAT('%', ?, '%');
+
+-- name: DeletePhoneByNumber :execrows
+DELETE FROM phone WHERE phone_number LIKE CONCAT('%', ?, '%');

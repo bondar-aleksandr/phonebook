@@ -43,6 +43,30 @@ func (q *Queries) AddPhone(ctx context.Context, arg AddPhoneParams) error {
 	return err
 }
 
+const deletePersonByFname = `-- name: DeletePersonByFname :execrows
+DELETE FROM person WHERE first_name LIKE CONCAT('%', ?, '%')
+`
+
+func (q *Queries) DeletePersonByFname(ctx context.Context, concat interface{}) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deletePersonByFname, concat)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deletePhoneByNumber = `-- name: DeletePhoneByNumber :execrows
+DELETE FROM phone WHERE phone_number LIKE CONCAT('%', ?, '%')
+`
+
+func (q *Queries) DeletePhoneByNumber(ctx context.Context, concat interface{}) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deletePhoneByNumber, concat)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getAllPersons = `-- name: GetAllPersons :many
 SELECT id, first_name, last_name, notes, created, modified FROM person
 `

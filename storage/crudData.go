@@ -19,7 +19,7 @@ type CrudData struct {
 	FirstName string
 	LastName string
 	Phone string
-	SearchComb CrudComb
+	CrudComb CrudComb
 }
 
 func NewCrudData(args... string) *CrudData {
@@ -51,14 +51,14 @@ func NewCrudData(args... string) *CrudData {
 func(s *CrudData) setCrudComb() {
 	switch {
 	case s.FirstName != "" && s.LastName == "":
-		s.SearchComb = CrudFname
+		s.CrudComb = CrudFname
 	case s.LastName != "" && s.FirstName == "":
-		s.SearchComb = CrudLname
+		s.CrudComb = CrudLname
 	case s.FirstName != "" && s.LastName != "":
-		s.SearchComb = CrudFullName
+		s.CrudComb = CrudFullName
 	case s.Phone != "":
-		s.SearchComb = CrudPhone
+		s.CrudComb = CrudPhone
 	default:
-		s.SearchComb = CrudAll
+		s.CrudComb = CrudAll
 	}
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"fmt"
 	// "github.com/bondar-aleksandr/phonebook/entities"
 	"github.com/bondar-aleksandr/phonebook/phonebook"
 
@@ -19,6 +18,9 @@ func main() {
 		log.Fatal(err)
 	}
 	pb := phonebook.New(s)
+	if err := pb.Populate(ctx); err != nil {
+		log.Println(err)
+	}
 	// person01 := entities.NewPerson("vasya", "pupkin", "")
 	// person01.AddPhone(entities.NewPhone(entities.Mobile, "+380951235432"))
 	// person01.AddPhone(entities.NewPhone(entities.Work, "+380961112223"))
@@ -34,14 +36,15 @@ func main() {
 	// if err != nil {
 	// 	log.Println(err)
 	// }
-	search := storage.NewCrudData("", "", "096")
-	result, err := pb.Search(ctx, search)
+	search := storage.NewCrudData("Dol")
+	count, err := pb.Delete(ctx, search)
+	log.Printf("deleted %d rows", count)
 	if err != nil {
 		log.Println(err)
 	}
-	for _,v := range result {
-		fmt.Println(v)
-	}
+	// for _,v := range result {
+	// 	log.Println(v)
+	// }
 	// if err := pb.Reset(ctx); err != nil {
 	// 	log.Println(err)
 	// }
