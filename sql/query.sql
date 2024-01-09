@@ -1,17 +1,23 @@
 -- name: GetAllPersons :many
-SELECT id, first_name, last_name, notes FROM person;
+SELECT * FROM person;
+
+-- name: GetPersonByID :one
+SELECT * FROM person WHERE id = ?;
 
 -- name: GetPersonByFname :many
-SELECT id, first_name, last_name, notes FROM person WHERE first_name LIKE CONCAT('%', ?, '%');
+SELECT * FROM person WHERE first_name LIKE CONCAT('%', ?, '%');
 
 -- name: GetPersonByLname :many
-SELECT id, first_name, last_name, notes FROM person WHERE last_name LIKE ?;
+SELECT * FROM person WHERE last_name LIKE CONCAT('%', ?, '%');
 
 -- name: GetPersonByFullname :many
-SELECT id, first_name, last_name, notes FROM person WHERE first_name LIKE ? AND last_name LIKE ?;
+SELECT * FROM person WHERE first_name LIKE CONCAT('%', ?, '%') AND last_name LIKE CONCAT('%', ?, '%');
 
 -- name: GetPersonPhones :many
 SELECT phone_number, phone_type FROM phone WHERE person_id = ?;
+
+-- name: GetPersonIDByPhone :many
+SELECT person_id FROM phone WHERE phone_number LIKE CONCAT('%', ?, '%');
 
 -- name: AddPerson :execlastid
 INSERT INTO person (first_name, last_name, notes) VALUES (?, ?, ?);

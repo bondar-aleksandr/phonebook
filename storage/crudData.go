@@ -1,32 +1,28 @@
-package entities
+package storage
 
 import (
 	"strings"
 )
 
-type Specification interface {
-	IsSatisfied() bool
-}
-
-type SearchComb uint8
+type CrudComb uint8
 
 const(
-	SearchFname SearchComb = iota
-	SearchLname
-	SearchFullName
-	SearchPhone
-	SearchAll
-	SearchUnknown
+	CrudFname CrudComb = iota
+	CrudLname
+	CrudFullName
+	CrudPhone
+	CrudAll
+	CrudUnknown
 )
 
-type SearchData struct {
+type CrudData struct {
 	FirstName string
 	LastName string
 	Phone string
-	SearchComb SearchComb
+	SearchComb CrudComb
 }
 
-func NewSearchData(args... string) *SearchData {
+func NewCrudData(args... string) *CrudData {
 	var (
 		FirstName string
 		LastName string
@@ -43,26 +39,26 @@ func NewSearchData(args... string) *SearchData {
 		LastName = args[1]
 		Phone = args[2]
 	}
-	searchData := &SearchData{
+	searchData := &CrudData{
 		FirstName: strings.TrimSpace(FirstName),
 		LastName: strings.TrimSpace(LastName),
 		Phone: strings.TrimSpace(Phone),
 	}
-	searchData.setSearchType()
+	searchData.setCrudComb()
 	return searchData
 }
 
-func(s *SearchData) setSearchType() {
+func(s *CrudData) setCrudComb() {
 	switch {
 	case s.FirstName != "" && s.LastName == "":
-		s.SearchComb = SearchFname
+		s.SearchComb = CrudFname
 	case s.LastName != "" && s.FirstName == "":
-		s.SearchComb = SearchLname
+		s.SearchComb = CrudLname
 	case s.FirstName != "" && s.LastName != "":
-		s.SearchComb = SearchFullName
+		s.SearchComb = CrudFullName
 	case s.Phone != "":
-		s.SearchComb = SearchPhone
+		s.SearchComb = CrudPhone
 	default:
-		s.SearchComb = SearchAll
+		s.SearchComb = CrudAll
 	}
 }

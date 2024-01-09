@@ -44,30 +44,25 @@ func (q *Queries) AddPhone(ctx context.Context, arg AddPhoneParams) error {
 }
 
 const getAllPersons = `-- name: GetAllPersons :many
-SELECT id, first_name, last_name, notes FROM person
+SELECT id, first_name, last_name, notes, created, modified FROM person
 `
 
-type GetAllPersonsRow struct {
-	ID        int32
-	FirstName string
-	LastName  string
-	Notes     sql.NullString
-}
-
-func (q *Queries) GetAllPersons(ctx context.Context) ([]GetAllPersonsRow, error) {
+func (q *Queries) GetAllPersons(ctx context.Context) ([]Person, error) {
 	rows, err := q.db.QueryContext(ctx, getAllPersons)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetAllPersonsRow
+	var items []Person
 	for rows.Next() {
-		var i GetAllPersonsRow
+		var i Person
 		if err := rows.Scan(
 			&i.ID,
 			&i.FirstName,
 			&i.LastName,
 			&i.Notes,
+			&i.Created,
+			&i.Modified,
 		); err != nil {
 			return nil, err
 		}
@@ -83,30 +78,25 @@ func (q *Queries) GetAllPersons(ctx context.Context) ([]GetAllPersonsRow, error)
 }
 
 const getPersonByFname = `-- name: GetPersonByFname :many
-SELECT id, first_name, last_name, notes FROM person WHERE first_name LIKE CONCAT('%', ?, '%')
+SELECT id, first_name, last_name, notes, created, modified FROM person WHERE first_name LIKE CONCAT('%', ?, '%')
 `
 
-type GetPersonByFnameRow struct {
-	ID        int32
-	FirstName string
-	LastName  string
-	Notes     sql.NullString
-}
-
-func (q *Queries) GetPersonByFname(ctx context.Context, concat interface{}) ([]GetPersonByFnameRow, error) {
+func (q *Queries) GetPersonByFname(ctx context.Context, concat interface{}) ([]Person, error) {
 	rows, err := q.db.QueryContext(ctx, getPersonByFname, concat)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetPersonByFnameRow
+	var items []Person
 	for rows.Next() {
-		var i GetPersonByFnameRow
+		var i Person
 		if err := rows.Scan(
 			&i.ID,
 			&i.FirstName,
 			&i.LastName,
 			&i.Notes,
+			&i.Created,
+			&i.Modified,
 		); err != nil {
 			return nil, err
 		}
@@ -122,35 +112,30 @@ func (q *Queries) GetPersonByFname(ctx context.Context, concat interface{}) ([]G
 }
 
 const getPersonByFullname = `-- name: GetPersonByFullname :many
-SELECT id, first_name, last_name, notes FROM person WHERE first_name LIKE ? AND last_name LIKE ?
+SELECT id, first_name, last_name, notes, created, modified FROM person WHERE first_name LIKE CONCAT('%', ?, '%') AND last_name LIKE CONCAT('%', ?, '%')
 `
 
 type GetPersonByFullnameParams struct {
-	FirstName string
-	LastName  string
+	CONCAT   interface{}
+	CONCAT_2 interface{}
 }
 
-type GetPersonByFullnameRow struct {
-	ID        int32
-	FirstName string
-	LastName  string
-	Notes     sql.NullString
-}
-
-func (q *Queries) GetPersonByFullname(ctx context.Context, arg GetPersonByFullnameParams) ([]GetPersonByFullnameRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPersonByFullname, arg.FirstName, arg.LastName)
+func (q *Queries) GetPersonByFullname(ctx context.Context, arg GetPersonByFullnameParams) ([]Person, error) {
+	rows, err := q.db.QueryContext(ctx, getPersonByFullname, arg.CONCAT, arg.CONCAT_2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetPersonByFullnameRow
+	var items []Person
 	for rows.Next() {
-		var i GetPersonByFullnameRow
+		var i Person
 		if err := rows.Scan(
 			&i.ID,
 			&i.FirstName,
 			&i.LastName,
 			&i.Notes,
+			&i.Created,
+			&i.Modified,
 		); err != nil {
 			return nil, err
 		}
@@ -165,35 +150,75 @@ func (q *Queries) GetPersonByFullname(ctx context.Context, arg GetPersonByFullna
 	return items, nil
 }
 
-const getPersonByLname = `-- name: GetPersonByLname :many
-SELECT id, first_name, last_name, notes FROM person WHERE last_name LIKE ?
+const getPersonByID = `-- name: GetPersonByID :one
+SELECT id, first_name, last_name, notes, created, modified FROM person WHERE id = ?
 `
 
-type GetPersonByLnameRow struct {
-	ID        int32
-	FirstName string
-	LastName  string
-	Notes     sql.NullString
+func (q *Queries) GetPersonByID(ctx context.Context, id int32) (Person, error) {
+	row := q.db.QueryRowContext(ctx, getPersonByID, id)
+	var i Person
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Notes,
+		&i.Created,
+		&i.Modified,
+	)
+	return i, err
 }
 
-func (q *Queries) GetPersonByLname(ctx context.Context, lastName string) ([]GetPersonByLnameRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPersonByLname, lastName)
+const getPersonByLname = `-- name: GetPersonByLname :many
+SELECT id, first_name, last_name, notes, created, modified FROM person WHERE last_name LIKE CONCAT('%', ?, '%')
+`
+
+func (q *Queries) GetPersonByLname(ctx context.Context, concat interface{}) ([]Person, error) {
+	rows, err := q.db.QueryContext(ctx, getPersonByLname, concat)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetPersonByLnameRow
+	var items []Person
 	for rows.Next() {
-		var i GetPersonByLnameRow
+		var i Person
 		if err := rows.Scan(
 			&i.ID,
 			&i.FirstName,
 			&i.LastName,
 			&i.Notes,
+			&i.Created,
+			&i.Modified,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPersonIDByPhone = `-- name: GetPersonIDByPhone :many
+SELECT person_id FROM phone WHERE phone_number LIKE CONCAT('%', ?, '%')
+`
+
+func (q *Queries) GetPersonIDByPhone(ctx context.Context, concat interface{}) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, getPersonIDByPhone, concat)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var person_id int32
+		if err := rows.Scan(&person_id); err != nil {
+			return nil, err
+		}
+		items = append(items, person_id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

@@ -3,7 +3,6 @@ package sqlcstorage
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -18,6 +17,7 @@ type Storage struct {
 	queries *db_access.Queries
 }
 
+// New creates new instance of storage
 func New(path string) (*Storage, error) {
 	db, err := sql.Open("mysql", path)
 	if err != nil {
@@ -31,53 +31,59 @@ func New(path string) (*Storage, error) {
 	db.SetMaxIdleConns(10)
 
 	s := &Storage{DB: db}
-	if err = s.Init(context.TODO()); err != nil {
+	if err = s.init(context.TODO()); err != nil {
 		return nil, fmt.Errorf("can't initialize database: %w", err)
 	}
 	s.queries = db_access.New(db)
 	return s, nil
 }
 
-func(s *Storage) Init(ctx context.Context) error {
-	sqlInit, err := os.ReadFile("db_init.sql")
+// Init executes commands from sql_init.sql file. Creates database
+// and tables.
+func(s *Storage) init(ctx context.Context) error {
+	sqlInit, err := os.ReadFile("sql/db_init.sql")
 	if err != nil {
 		return  fmt.Errorf("can't open sql init file: %w", err)
 	}
 	_, err = s.DB.ExecContext(ctx, string(sqlInit))
 	if err != nil {
-		return  fmt.Errorf("can't open sql init file: %w", err)
+		return  fmt.Errorf("can't execute sql init file: %w", err)
 	}
-	
-
-	// q1 := `CREATE DATABASE IF NOT EXISTS phonebook;`
-	// q2 := `USE phonebook;`
-	// q3 := `CREATE TABLE IF NOT EXISTS person (id INT PRIMARY KEY AUTO_INCREMENT, first_name VARCHAR(50) NOT NULL,
-	// last_name VARCHAR(50) NOT NULL DEFAULT 'Unknown', notes VARCHAR(200) DEFAULT 'Unknown',
-	// created TIMESTAMP DEFAULT CURRENT_TIMESTAMP(), modified TIMESTAMP ON UPDATE CURRENT_TIMESTAMP());`
-	// q4 := `CREATE TABLE IF NOT EXISTS phone (id INT PRIMARY KEY AUTO_INCREMENT, phone_number VARCHAR(20) UNIQUE NOT NULL, 
-	// phone_type SMALLINT NOT NULL DEFAULT 3, person_id INT NOT NULL, CONSTRAINT phone_owner
-	// FOREIGN KEY (person_id)	REFERENCES person(id) ON DELETE CASCADE);`
-
-	// qs := []string{q1, q2, q3, q4}
-
-	// for _, v := range qs {
-	// 	if _, err := s.DB.ExecContext(ctx, v); err != nil {
-	// 		return fmt.Errorf("can't init db: %w", err)
-	// 	}
-	// }
 	return nil
 }
 
+// Reset executes commands from sql_reset.sql file. Drops database.
+func(s *Storage) Reset(ctx context.Context) error {
+	sqlreset, err := os.ReadFile("sql/db_reset.sql")
+	if err != nil {
+		return  fmt.Errorf("can't open sql reset file: %w", err)
+	}
+	_, err = s.DB.ExecContext(ctx, string(sqlreset))
+	if err != nil {
+		return  fmt.Errorf("can't execute sql reset file: %w", err)
+	}
+	return nil
+}
+
+// Create CRUD operation.
 func(s *Storage) Create(ctx context.Context, p *entities.Person) error {
 	
 	personParams := db_access.AddPersonParams{}
 	personParams.FirstName = p.FirstName
 	personParams.LastName = p.LastName
-	personParams.Notes = sql.NullString{
-		String: p.Notes,
-		Valid: true,
+	if p.Notes != "" {
+		personParams.Notes = sql.NullString{
+			String: p.Notes,
+			Valid: true,
+		}
 	}
-	id, err := s.queries.AddPerson(ctx, personParams)
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("can't start transaction: %w", err)
+	}
+	defer tx.Rollback()
+	qtx := s.queries.WithTx(tx)
+	id, err := qtx.AddPerson(ctx, personParams)
 	if err != nil {
 		return fmt.Errorf("can't add person: %w", err)
 	}
@@ -87,34 +93,71 @@ func(s *Storage) Create(ctx context.Context, p *entities.Person) error {
 	for _, v := range p.Phones{
 		phoneParams.PhoneNumber = v.Number
 		phoneParams.PhoneType = int32(v.Type)
-		err = s.queries.AddPhone(ctx, phoneParams)
+		err = qtx.AddPhone(ctx, phoneParams)
 		if err != nil {
 			return fmt.Errorf("can't add phone: %w", err)
 		}
 	}
-	return nil
+	return tx.Commit()
 }
 
-func(s *Storage) Read(ctx context.Context, sd *entities.SearchData) ([]*entities.Person, error) {
-	switch sd.SearchComb {
-	case entities.SearchFname:
-		personsDb, err := s.queries.GetPersonByFname(ctx, sd.FirstName)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, storage.ErrNoPersonExists
-		} else if err != nil {
+// Read CRUD operation.
+// TODO: refactor if possible, don't to repeat the same actions for every case!
+func(s *Storage) Read(ctx context.Context, cd *storage.CrudData) ([]*entities.Person, error) {
+	var persons []*entities.Person
+	switch cd.SearchComb {
+	case storage.CrudFname:
+		personsDb, err := s.queries.GetPersonByFname(ctx, cd.FirstName)
+		if err != nil {
 			return nil, fmt.Errorf("can't query person by fname: %w", err)
 		}
-		persons, err := s.convertFromModels(ctx, personsDb)
+		persons, err = s.convertFromDBModels(ctx, personsDb)
 		if err != nil {
 			return nil, fmt.Errorf("can't recreate person from db data: %w", err)
 		}
-		return persons, nil
+	case storage.CrudLname:
+		personsDb, err := s.queries.GetPersonByLname(ctx, cd.LastName)
+		if err != nil {
+			return nil, fmt.Errorf("can't query person by lname: %w", err)
+		}
+		persons, err = s.convertFromDBModels(ctx, personsDb)
+		if err != nil {
+			return nil, fmt.Errorf("can't recreate person from db data: %w", err)
+		}
+	case storage.CrudAll:
+		personsDb, err := s.queries.GetAllPersons(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("can't query persons: %w", err)
+		}
+		persons, err = s.convertFromDBModels(ctx, personsDb)
+		if err != nil {
+			return nil, fmt.Errorf("can't recreate person from db data: %w", err)
+		}
+	case storage.CrudPhone:
+		ids, err := s.queries.GetPersonIDByPhone(ctx, cd.Phone)
+		if err != nil {
+			return nil, fmt.Errorf("can't query persons id: %w", err)
+		}
+		personsDb := []db_access.Person{}
+		for _, id := range ids {
+			person, err := s.queries.GetPersonByID(ctx, id)
+			if err != nil {
+				return nil, fmt.Errorf("can't query person by id: %w", err)
+			}
+			personsDb = append(personsDb, person)
+		}
+		persons, err = s.convertFromDBModels(ctx, personsDb)
+		if err != nil {
+			return nil, fmt.Errorf("can't recreate person from db data: %w", err)
+		}
 	}
-	return nil, nil
+	return persons, nil
 }
 
-func(s *Storage) convertFromModels(ctx context.Context, 
-	pm []db_access.GetPersonByFnameRow) ([]*entities.Person, error) {
+// convertFromDBModel queries phone info for person, and recreates *entities.Person
+// objects 
+func(s *Storage) convertFromDBModels(ctx context.Context, 
+	pm []db_access.Person) ([]*entities.Person, error) {
 	result := []*entities.Person{}
 	for _,v := range pm {
 		p := entities.NewPerson(v.FirstName, v.LastName, v.Notes.String)

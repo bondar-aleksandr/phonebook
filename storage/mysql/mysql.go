@@ -77,7 +77,7 @@ func(s *Storage) Create(ctx context.Context, p *entities.Person) error {
 	defer stmt.Close()
 
 	for _, v := range p.Phones {
-		_, err := stmt.ExecContext(ctx, v.Number, v.Type, v.Active, id)
+		_, err := stmt.ExecContext(ctx, v.Number, v.Type, id)
 		if err != nil {
 			return fmt.Errorf("can't add phone number: %w", err)
 		}
@@ -85,7 +85,7 @@ func(s *Storage) Create(ctx context.Context, p *entities.Person) error {
 	return nil
 }
 
-func(s *Storage) Read(ctx context.Context, data *entities.SearchData) (*entities.Person, error) {
+func(s *Storage) Read(ctx context.Context, data *storage.CrudData) (*entities.Person, error) {
 	
 	var (
 		// FirstName string
